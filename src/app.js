@@ -25,3 +25,23 @@ app.get('/health', (req, res) => {
 app.get('/api/serie/:nombre', async (req, res) => {
     // Sanitizamos
     const tituloBuscado = sanitizarTitulo(req.params.nombre);
+
+     try {
+        // Usamos encodeURIComponent por si el título tiene espacios
+        const url = https://api.tvmaze.com/singlesearch/shows?q=${encodeURIComponent(tituloBuscado)}&embed=cast;
+        
+        const respuesta = await fetch(url);
+
+        if (!respuesta.ok) {
+            return res.status(404).json({ 
+                error: No encontramos información en la web para: ${tituloBuscado} 
+            });
+        }
+
+        const data = await respuesta.json();
+
+        // Extraer los 3 actores principales
+        let actoresPrincipales = [];
+        if (data._embedded && data._embedded.cast) {
+            actoresPrincipales = data._embedded.cast.slice(0, 3).map(actor => actor.person.name);
+        }
