@@ -23,18 +23,17 @@ app.get('/health', (req, res) => {
 
 // Endpoint 2: Búsqueda dinámica de la serie
 app.get('/api/serie/:nombre', async (req, res) => {
-    // Sanitizamos
     const tituloBuscado = sanitizarTitulo(req.params.nombre);
 
-     try {
-        // Usamos encodeURIComponent por si el título tiene espacios
-        const url = https://api.tvmaze.com/singlesearch/shows?q=${encodeURIComponent(tituloBuscado)}&embed=cast;
+    try {
+        // Petición a la API pública de TVMaze
+        const url = `https://api.tvmaze.com/singlesearch/shows?q=${encodeURIComponent(tituloBuscado)}&embed=cast`;
         
         const respuesta = await fetch(url);
 
         if (!respuesta.ok) {
             return res.status(404).json({ 
-                error: No encontramos información en la web para: ${tituloBuscado} 
+                error: `No encontramos información en la web para: ${tituloBuscado}` 
             });
         }
 
@@ -45,3 +44,29 @@ app.get('/api/serie/:nombre', async (req, res) => {
         if (data._embedded && data._embedded.cast) {
             actoresPrincipales = data._embedded.cast.slice(0, 3).map(actor => actor.person.name);
         }
+
+        // Construimos el objeto de respuesta
+        const datosSerie = {
+            busqueda_original: req.params.nombre,
+            titulo_sanitizado: tituloBuscado,
+            titulo_oficial: data.name,
+            actores_principales: actoresPrincipales.length > 0 ? actoresPrincipales : ["No disponible"],
+            ano_inicio: data.premiered ? data.premiered.substring(0, 4) : "Desconocido",
+            ano_fin: data.ended ? data.ended.substring(0, 4) : (data.status === "Running" ? "En emisión" : "Desconocido"),
+            plataforma_streaming: data.network ? data.network.name : (data.webChannel ? data.webChannel.name : "Desconocido")
+        };
+
+        res.status(200).json(datosSerie);
+
+    } catch (error) {
+        // Manejo de errores
+        res.status(500).json({ 
+            error: "Hubo un problema al intentar conectarse a la web", 
+            detalle: error.message 
+        });
+    }
+});
+
+app.listen(port, () => {
+    console.log(`Servidor corriendo en http://localhost:${port}`);
+});
