@@ -73,7 +73,6 @@ app.get('/api/serie', async (req, res) => {
             actores_principales: actoresPrincipales.length > 0 ? actoresPrincipales : ["No disponible"],
             ano_inicio: data.premiered ? data.premiered.substring(0, 4) : "Desconocido",
             ano_fin: data.ended ? data.ended.substring(0, 4) : (data.status === "Running" ? "En emisión" : "Desconocido"),
-            creador: "No provisto por esta API",
             plataforma_streaming: data.network ? data.network.name : (data.webChannel ? data.webChannel.name : "Desconocido")
         };
 
@@ -83,6 +82,15 @@ app.get('/api/serie', async (req, res) => {
         res.status(500).json({ error: "Problema al conectarse a TVMaze", detalle: error.message });
     }
 });
+
+// GET 3: Ver el estado completo de todas las listas locales
+app.get('/api/listas', (req, res) => {
+    
+    res.status(200).json({
+        mensaje: "Estado actual de tus listas",
+        listas: listasUsuario
+    });
+}); 
 
 // ==========================================
 // MÉTODOS POST (Usando listas locales)
@@ -133,6 +141,50 @@ app.post('/api/calificar', (req, res) => {
         mensaje: `Has calificado '${titulo}' con un ${puntuacion}.`,
         todas_las_calificaciones: listasUsuario.calificaciones[titulo]
     });
+});
+
+// ==========================================
+// MÉTODOS PUT (Reemplazar todo)
+// ==========================================
+// PUT 1: Reemplazar TODA la lista de favoritas
+app.put('/api/favoritas', (req, res) => {
+    const { nuevasFavoritas } = req.body;
+    if (!Array.isArray(nuevasFavoritas)) return res.status(400).json({ error: "Envía un arreglo 'nuevasFavoritas'." });
+    
+    listasUsuario.favoritas = nuevasFavoritas.map(sanitizarTitulo);
+    res.status(200).json({ mensaje: "Lista de favoritas reemplazada", favoritas: listasUsuario.favoritas });
+});
+
+// ==========================================
+// MÉTODOS PATCH (Modificación parcial)
+// ==========================================
+
+// PATCH 1: Corregir el nombre de una serie en favoritas (ej: si lo escribiste mal)
+app.patch('/api/favoritas/:nombre', (req, res) => {
+    const tituloViejo = sanitizarTitulo(req.params.nombre);
+    const tituloNuevo = sanitizarTitulo(req.body.nuevoTitulo);
+    
+    const index = listasUsuario.favoritas.indexOf(tituloViejo);
+    if (index === -1) return res.status(404).json({ error: "La serie no está en favoritas." });
+    if (!tituloNuevo) return res.status(400).json({ error: "Envía el 'nuevoTitulo'." });
+
+    listasUsuario.favoritas[index] = tituloNuevo;
+    res.status(200).json({ mensaje: "Título actualizado", favoritas: listasUsuario.favoritas });
+});
+
+// ==========================================
+// MÉTODOS DELETE (Eliminación)
+// ==========================================
+
+// DELETE 1: Eliminar una serie de favoritas
+app.delete('/api/favoritas/:nombre', (req, res) => {
+    const titulo = sanitizarTitulo(req.params.nombre);
+    const index = listasUsuario.favoritas.indexOf(titulo);
+    
+    if (index === -1) return res.status(404).json({ error: "La serie no está en favoritas." });
+    
+    listasUsuario.favoritas.splice(index, 1);
+    res.status(200).json({ mensaje: `${titulo} eliminada de favoritas`, favoritas: listasUsuario.favoritas });
 });
 
 // Iniciar el servidor
