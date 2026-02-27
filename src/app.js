@@ -155,6 +155,15 @@ app.put('/api/favoritas', (req, res) => {
     res.status(200).json({ mensaje: "Lista de favoritas reemplazada", favoritas: listasUsuario.favoritas });
 });
 
+// PUT 2: Reemplazar TODA la lista de por ver
+app.put('/api/por-ver', (req, res) => {
+    const { nuevaListaPorVer } = req.body;
+    if (!Array.isArray(nuevaListaPorVer)) return res.status(400).json({ error: "Envía un arreglo 'nuevaListaPorVer'." });
+    
+    listasUsuario.porVer = nuevaListaPorVer.map(sanitizarTitulo);
+    res.status(200).json({ mensaje: "Lista por ver reemplazada", por_ver: listasUsuario.porVer });
+});
+
 // ==========================================
 // MÉTODOS PATCH (Modificación parcial)
 // ==========================================
@@ -172,6 +181,19 @@ app.patch('/api/favoritas/:nombre', (req, res) => {
     res.status(200).json({ mensaje: "Título actualizado", favoritas: listasUsuario.favoritas });
 });
 
+// PATCH 2: Corregir el nombre en la lista por ver
+app.patch('/api/por-ver/:nombre', (req, res) => {
+    const tituloViejo = sanitizarTitulo(req.params.nombre);
+    const tituloNuevo = sanitizarTitulo(req.body.nuevoTitulo);
+    
+    const index = listasUsuario.porVer.indexOf(tituloViejo);
+    if (index === -1) return res.status(404).json({ error: "La serie no está en por ver." });
+    if (!tituloNuevo) return res.status(400).json({ error: "Envía el 'nuevoTitulo'." });
+
+    listasUsuario.porVer[index] = tituloNuevo;
+    res.status(200).json({ mensaje: "Título actualizado", por_ver: listasUsuario.porVer });
+});
+
 // ==========================================
 // MÉTODOS DELETE (Eliminación)
 // ==========================================
@@ -185,6 +207,17 @@ app.delete('/api/favoritas/:nombre', (req, res) => {
     
     listasUsuario.favoritas.splice(index, 1);
     res.status(200).json({ mensaje: `${titulo} eliminada de favoritas`, favoritas: listasUsuario.favoritas });
+});
+
+// DELETE 2: Eliminar una serie de por ver
+app.delete('/api/por-ver/:nombre', (req, res) => {
+    const titulo = sanitizarTitulo(req.params.nombre);
+    const index = listasUsuario.porVer.indexOf(titulo);
+    
+    if (index === -1) return res.status(404).json({ error: "La serie no está en por ver." });
+    
+    listasUsuario.porVer.splice(index, 1);
+    res.status(200).json({ mensaje: `${titulo} eliminada de por ver`, por_ver: listasUsuario.porVer });
 });
 
 // Iniciar el servidor
